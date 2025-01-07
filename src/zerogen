@@ -1,0 +1,11 @@
+#!/bin/sh
+# returns a series of 0's the length of $1
+# $1 MUST be a number
+unset __zg2 __zg1
+__zg1="${1:-0}"
+[ "$__zg1" -eq 0 ] && : $((__zg1+=1))
+until [ "${#__zg2}" -ge "${__zg1}" ]; do
+  __zg2="0${__zg2}"
+done
+echo "${__zg2}"
+exit 0

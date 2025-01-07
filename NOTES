@@ -1,0 +1,18 @@
+---
+below are various notes
+-- this project features a slightly new style of code for us [Mia]
+  >> && and || 
+---- in this style if is preferred over literal and/or (&&/||)
+---- this is done as -a/-o are not well defined within the POSIX spec
+---- and I have recently changed to make my code portable instead of POSIX 
+---- and because -a/-o are not well defined, certain implementations could omit them
+  >> variables are named in hopes that they can be understood
+---- standard variables have names that I believe make sense
+---- variables for internal functions (such as zeroadd and zerogen) make use of __ prefixes
+---- this is done to avoid collisions as shbc is intended to be used in complex projects
+  >> most of my code now makes use of shbindgen (see github.com/Mia-Rain/shbindgen)
+---- shbc is intended to be used as a library of sorts
+---- larger projects using shell code are able to make use of shbindgen
+---- to generate bindings/functions from refractored code
+---- see github.com/Mia-Rain/shbindgen for more details
+---

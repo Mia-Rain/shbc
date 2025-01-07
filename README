@@ -1,0 +1,18 @@
+---
+shbc
+-- at last, bc replacement in pure sh
+---
+Features
+-- floating point math 
+---- reimplemented successor to psh-fractional
+---- redone to avoid overflows and flawed math
+-- sqrt() in pure sh
+---- featuring several custom/standard algorithms
+-- exponents ...
+-- others to come perhaps...
+---- plans for at least sin() and cos()
+---
+Arithmetic operations
+-- posix sh already provides arithmetic operators within $(())
+---- as such these will likely not be reimplemented
+---

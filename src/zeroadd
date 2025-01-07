@@ -1,0 +1,20 @@
+#!/bin/sh
+# add 0's to $1 until same length as $2
+# returns the result
+## unless $3 is given a value; then 0's are added to the front
+# ^ this prob isn't needed tbh
+[ "${#2}" -eq "${#1}" ] && {
+  echo "$1"
+  exit 0
+}
+[ "${#1}" -ge "${#2}" ] && {
+  echo "$1"
+  exit 1
+}
+__z1="$1"
+__z2="$2"
+until [ "${#__z1}" = "${#__z2}" ]; do
+  [ "$3" ] || __z1="${__z1}0"
+  [ "$3" ] && __z1="0${__z1}"
+done
+echo "$__z1"; exit 0

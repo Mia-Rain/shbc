@@ -7,7 +7,7 @@ unset sumfrac
 for num in "$num1" "$num2"; do
   case "$num" in
     *"."*) : $((decnum+=1)) ;;
-  esac 
+  esac
 done
 [ "$decnum" -eq 0 ] && {
   [ "$quiet" ] || printf '  %s\n+ %s\n----\n' "$num1" "$num2"
@@ -16,26 +16,33 @@ if [ "$decnum" -ge 1 ]; then
 # add decimals
   [ "$(printf '%.1s' "$num1")" = "-" ] && carryneg1="-"
   [ "$(printf '%.1s' "$num2")" = "-" ] && carryneg2="-"
-  if [ "$decnum" -eq 1 ]; then
-    case "$num1" in
-      *"."*) : ;;
-      *) num1="$num1.0"; sumfrac="$num2" ;;
-    esac
-    case "$num2" in
-      *"."*) : ;;
-      *) num2="$num2.0"; sumfrac="$num1" ;;
-    esac
-    # inject .0 into number if only one is missing, as if both are missing we can simply skip all of this
-    : $((decnum+=1))
-  fi
-  # the currect number of 0s needs to be injected to match with oposite
-  #
   [ "$carryneg1" ] && unset sumfrac
   [ "$carryneg2" ] && unset sumfrac
   whole1="${num1%%.*}"
   frac1="${carryneg1}${num1##*.}"
   whole2="${num2%%.*}"
   frac2="${carryneg2}${num2##*.}"
+  # the currect number of 0s needs to be injected to match with other
+  frac1="$(zeroadd "$frac1" "$frac2")"
+  frac2="$(zeroadd "$frac2" "$frac1")"
+  # it may be possible to skip some steps if we check which numbers actually contain fractional parts
+  # however until the logic of fraction math works 100% of the time its better to force it and possibly have a bug that can then be fixed
+  ##
+  # a + (-b) = -b + a
+  ##
+  [ "$carryneg1" ] && {
+    oldfrac1="$frac1"; oldfrac2="$frac2"
+    oldwhole1="$whole1"; oldwhole2="$whole2" 
+    frac1="$oldfrac2"; whole1="$oldwhole2"
+    frac2="$oldfrac1"; whole2="$oldwhole1"
+    # this should in theory make num1, num2 and num2, num1
+    unset carryneg1 oldwhole1 oldwhole2 oldfrac1 oldfrac2
+  }
+  ##
+  # working with - on the lower side is better for fractional
+  ##
+  # the opossing is true for wholes I believe
+
   [ "$quiet" ] || printf '  %s\n+ %s\n----\n' "${carryneg2:+ }$whole1${frac1:+.${frac1#-}}" "${carryneg1:+ }$whole2${frac2:+.${frac2#-}}"
   if [ "$sumfrac" ]; then
     [ "$sumfrac" = "$num1" ] && sumfrac="$frac1"
@@ -67,134 +74,9 @@ if [ "$decnum" -ge 1 ]; then
         # borrows need to occur if current digit of #2/#1 is < 0 and digit of oppossing number is < flipped other digit
         # the logic for this is actually super annoying
         ##
-        # borrow detection:
-        # if the top digit is negative than we can check using fracadd1#- -lt fracadd2#-
-        # the inverse much occur if the bottom is negative
+        # see https://social.translunar.academy/notice/AqLEjpHSMhX50lrUtk
+        # as well as previous commits for logic
         ##
-        ##
-        # -2 + 0.5 = 0.5 + -2
-        # so it may be possible to avoid detection of inverse by swapping the variables
-        ##
-        if {
-          if [ "$carryneg1" = "-" ]; then
-            if [ "${fracadd1#-}" -lt "${fracadd2#-}" ]; then 
-              true
-            else
-              false
-            fi
-          elif [ "$carryneg2" = "-" ]; then
-            if [ "${fracadd2#-}" -lt "${fracadd1#-}" ]; then
-              true
-            else
-              false
-            fi
-          else
-            false
-          fi
-        }; then
-          #echo "| borrow"
-          fracadd2="${carryneg2}${fracadd2#-}"
-          if [ ! "$fracnext1" ] || [ "$fracnext1" -eq 0 ]; then
-            #echo "| whole borrow"
-            if [ "$carryneg2" = "-" ]; then
-              #echo "| bottom borrow"
-              [ "$quiet" ] || printf '%s -> ' "$whole2"
-              : "$((whole2+=1))"
-              [ "$quiet" ] || printf '%s\n' "$whole2"
-              # bottom number is negative
-              # borrow on bottom number
-              stored_frac2="$frac2"
-              stored_borrow=1
-              while [ "$frac2" ]; do
-                frac2="${frac2#-}"
-                __next="${frac2%?}"; __current="${frac2#$__next}"
-                : "$((__current+=10))"; : "$((__current-=1))"
-                __new_frac2="${__new_frac2}$__current"
-                frac2="$__next"
-              done
-              # preform a char loop and add 10-1 to each digit
-              frac2="${__new_frac2}"
-              fracnext2="${frac2%?}"; fraccurrent2="${frac2#$fracnext2}"
-              fracadd2="${carryneg2}$fraccurrent2"
-              # reset vars
-            elif [ "$carryneg1" = "-" ]; then
-              #echo "| top borrow"
-              [ "$quiet" ] || printf '%s -> ' "$whole1"
-              : "$((whole1+=1)))"
-              [ "$quiet" ] || printf '%s\n' "$whole1"
-              # top number is negative
-              # borrow on top number
-              stored_frac1="$frac1"
-              stored_borrow=1
-              while [ "$frac1" ]; do
-                frac1="${frac1#-}"
-                __next="${frac1%?}"; __current="${frac1#$__next}"
-                : "$((__current+=10))"; : "$((__current-=1))"
-                __new_frac1="${__new_frac1}$__current"
-                frac1="$__next"
-              done
-              # preform a char loop and add 10-1 to each digit
-              frac1="${__new_frac1}"
-              fracnext1="${frac1%?}"; fraccurrent1="${frac1#$fracnext1}"
-              fracadd1="${carryneg1}$fraccurrent1"
-              # reset vars
-            fi
-          else
-            echo "| frac borrow"
-            if [ "$carryneg1" = "-" ]; then
-              # borrow from bottom
-              #_frac_lookahead2="$fracnext2"
-              #until [ "${#_frac_lookahead2}" -eq 1 ]; do
-              #  _frac_lookahead2="${_frac_lookahead2#?}"
-              #done
-              # it may also be possible to generate a series of ?s based on the current digit
-              # to use variable expansion instead
-              _zero1="1$(zerogen "$digit")"
-              echo "| $frac2 - $_zero1 | $fracadd2"
-              : "$((frac2-=_zero1))"
-              : "$((fracadd2+=10))"
-              fracnext2="${frac2%?}"; fraccurrent2="${frac2#$fracnext2}"
-              fracadd2="${carryneg2}$fraccurrent2"
-            elif [ "$carryneg2" = "-" ]; then
-              # borrow from top
-              #_frac_lookahead1="$fracnext1"
-              #until [ "${#_frac_lookahead1}" -eq 1 ]; do
-              #  _frac_lookahead1="${_frac_lookahead1#?}"
-              #done
-              #echo "| $_frac_lookahead1"
-              _zero2="1$(zerogen "$digit")"
-              echo "| $frac1 - $_zero2 | $fracadd1"
-              : "$((frac1-=_zero2))"
-              : "$((fracadd1+=10))"
-              fracnext1="${frac1%?}"; fraccurrent1="${frac1#$fracnext1}"
-              fracadd1="${carryneg1}$fraccurrent1"
-            fi
-          fi
-        fi
-        # above is the borrow system
-        #echo "$fracadd1 + $fracadd2 | actual"
-        fracadd1="${carryneg1}${fracadd1#-}"; fracadd2="${carryneg2}${fracadd2#-}" 
-        if [ "$stored_borrow" ]; then
-          if [ "$stored_frac1" ]; then
-            [ "$quiet" ] || printf '%s -> ' "$fracadd1"
-            if [ "$carryneg1" ]; then
-              : "$((fracadd1-=stored_borrow))"
-            else
-              : "$((fracadd1+=stored_borrow))"
-            fi
-            unset stored_borrow stored_frac1
-            [ "$quiet" ] || printf '%s\n' "$fracadd1"
-          elif [ "$stored_frac2" ]; then
-            [ "$quiet" ] || printf '%s -> ' "$fracadd2"
-            if [ "$carryneg2" ]; then
-              : "$((fracadd2-=stored_borrow))"
-            else
-              : "$((fracadd2+=stored_borrow))"
-            fi
-            unset stored_borrow stored_frac2
-            [ "$quiet" ] || printf '%s\n' "$fracadd2"
-          fi
-        fi
         presum="$((fracadd1 + fracadd2))"
         sumfrac="${presum}${sumfrac#-}"
         #echo "----"
